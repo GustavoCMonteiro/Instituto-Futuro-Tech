@@ -114,11 +114,20 @@ Um computador **não pode** ser alocado a dois alunos na mesma data. Conflitos n
 
 Após **3 faltas consecutivas** (`LIMITE_FALTAS_CONSECUTIVAS`), o sistema gera/atualiza um alerta do tipo `risco_evasao` no painel pedagógico.
 
+## Integração Contínua (GitHub Actions)
+
+A cada push e pull request para `main`, o workflow `.github/workflows/ci.yml` roda automaticamente:
+
+1. Instala dependências (Python 3.12)
+2. Executa a suíte `pytest` com cobertura
+3. Faz smoke test do endpoint `/api/health`
+
+Acompanhe em: **Actions** → workflow **CI** (status verde = build e testes aprovados).
+
 ## Testes
 
 ```bash
 source .venv/bin/activate
-export PYTHONPATH=.
 pytest tests/ -v
 ```
 
@@ -130,12 +139,24 @@ Cobertura incluída:
 
 ## Variáveis de ambiente (opcional)
 
+Use o arquivo `.env.example` como modelo:
+
+```bash
+cp .env.example .env
+```
+
 | Variável | Padrão | Uso |
 |----------|--------|-----|
 | `GESTAO_AGIL_SECRET` | chave de desenvolvimento | Segredo JWT |
 | `GESTAO_AGIL_TOKEN_MINUTES` | `480` | Expiração do token |
 
 **Em produção**, altere `GESTAO_AGIL_SECRET` e restrinja CORS/`/api/auth/register`.
+
+O arquivo `pytest.ini` já configura `pythonpath = .`, então os testes rodam com:
+
+```bash
+pytest
+```
 
 ## Histórico de commits semânticos
 

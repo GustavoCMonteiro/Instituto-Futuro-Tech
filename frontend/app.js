@@ -1,4 +1,4 @@
-/* Gestão Ágil — lógica do PWA e consumo da API */
+/* Gestão Ágil — UI alinhada ao protótipo + consumo da API */
 (() => {
   const TOKEN_KEY = "gestao_agil_token";
   const USER_KEY = "gestao_agil_user";
@@ -9,7 +9,7 @@
     formLogin: document.getElementById("form-login"),
     loginMsg: document.getElementById("login-msg"),
     onlineStatus: document.getElementById("online-status"),
-    userChip: document.getElementById("user-chip"),
+    headerTitle: document.getElementById("header-title"),
     btnLogout: document.getElementById("btn-logout"),
     screenChamada: document.getElementById("screen-chamada"),
     screenAlertas: document.getElementById("screen-alertas"),
@@ -17,15 +17,24 @@
     inputData: document.getElementById("input-data"),
     listaAlunos: document.getElementById("lista-alunos"),
     listaAlertas: document.getElementById("lista-alertas"),
+    contador: document.getElementById("contador-alunos"),
     btnSalvar: document.getElementById("btn-salvar-chamada"),
     chamadaMsg: document.getElementById("chamada-msg"),
+    riscoTitulo: document.getElementById("risco-titulo"),
+    metricOcupacao: document.getElementById("metric-ocupacao"),
+    metricPresencas: document.getElementById("metric-presencas"),
+    metricPresencasSub: document.getElementById("metric-presencas-sub"),
     btnInstalar: document.getElementById("btn-instalar"),
+    btnToggleSenha: document.getElementById("btn-toggle-senha"),
     navButtons: document.querySelectorAll(".nav-bottom [data-screen]"),
   };
 
   let deferredPrompt = null;
   let alunosCache = [];
   let computadoresCache = [];
+  let turmaNome = "";
+  /** @type {Record<number, { presente: boolean|null, computadorId: number|null }>} */
+  let estadoAlunos = {};
 
   function token() {
     return localStorage.getItem(TOKEN_KEY);
@@ -33,10 +42,7 @@
 
   function setSession(data) {
     localStorage.setItem(TOKEN_KEY, data.access_token);
-    localStorage.setItem(
-      USER_KEY,
-      JSON.stringify({ nome: data.nome, papel: data.papel })
-    );
+    localStorage.setItem(USER_KEY, JSON.stringify({ nome: data.nome, papel: data.papel }));
   }
 
   function clearSession() {
@@ -60,11 +66,7 @@
     const res = await fetch(path, { ...options, headers });
     let body = null;
     const ct = res.headers.get("content-type") || "";
-    if (ct.includes("application/json")) {
-      body = await res.json();
-    } else {
-      body = await res.text();
-    }
+    body = ct.includes("application/json") ? await res.json() : await res.text();
     if (!res.ok) {
       const detail = body?.detail || "Falha na requisição.";
       const err = new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
@@ -78,19 +80,18 @@
     const logged = Boolean(token());
     els.viewLogin.classList.toggle("hidden", logged);
     els.viewApp.classList.toggle("hidden", !logged);
+    document.body.style.background = logged ? "var(--bg)" : "";
     if (logged) {
-      const user = JSON.parse(localStorage.getItem(USER_KEY) || "{}");
-      els.userChip.textContent = user.nome || "Educador";
       showScreen("chamada");
-      bootstrapAppData().catch((e) => {
-        showMsg(els.chamadaMsg, e.message, "error");
-      });
+      bootstrapAppData().catch((e) => showMsg(els.chamadaMsg, e.message, "error"));
     }
   }
 
   function showScreen(name) {
     els.screenChamada.classList.toggle("hidden", name !== "chamada");
     els.screenAlertas.classList.toggle("hidden", name !== "alertas");
+    els.headerTitle.textContent =
+      name === "alertas" ? "Painel de Alertas" : "Chamada e Máquinas";
     els.navButtons.forEach((btn) => {
       btn.setAttribute("aria-current", btn.dataset.screen === name ? "page" : "false");
     });
@@ -101,77 +102,133 @@
     }
   }
 
+  function pcsOcupadosNoEstado(excetoAlunoId = null) {
+    const ids = new Set();
+    Object.entries(estadoAlunos).forEach(([alunoId, st]) => {
+      if (excetoAlunoId && Number(alunoId) === excetoAlunoId) return;
+      if (st.presente === true && st.computadorId) ids.add(st.computadorId);
+    });
+    return ids;
+  }
+
+  function atualizarContador() {
+    const total = alunosCache.length;
+    const registrados = Object.values(estadoAlunos).filter((s) => s.presente !== null).length;
+    els.contador.textContent = `${registrados} de ${total} alunos registrados`;
+  }
+
+  function renderAlunos() {
+    const ocupados = pcsOcupadosNoEstado();
+    els.listaAlunos.innerHTML = alunosCache
+      .map((a) => {
+        const st = estadoAlunos[a.id] || { presente: null, computadorId: null };
+        const showPcs = st.presente === true;
+        const pcs = computadoresCache
+          .map((c) => {
+            const taken = ocupados.has(c.id) && st.computadorId !== c.id;
+            const selected = st.computadorId === c.id;
+            let cls = "pc-chip";
+            if (taken || !c.disponivel) cls += " is-ocupado";
+            else if (selected) cls += " is-selected";
+            const status = taken || !c.disponivel ? "Ocupado" : selected ? "Selecionado" : "Livre";
+            const icon =
+              taken || !c.disponivel
+                ? "🔒"
+                : selected
+                  ? "✓"
+                  : "✓";
+            return `<button type="button" class="${cls}" data-pc="${c.id}" ${
+              taken || !c.disponivel ? "disabled" : ""
+            }><strong>${c.codigo}</strong><span>${icon} ${status}</span></button>`;
+          })
+          .join("");
+
+        return `
+          <article class="aluno-card" data-aluno-id="${a.id}">
+            <header>
+              <strong>${a.nome}</strong>
+              <span>${turmaNome || "Turma"}</span>
+            </header>
+            <div class="presence-row">
+              <button type="button" class="btn-presence presente ${
+                st.presente === true ? "is-active" : ""
+              }" data-action="presente">
+                👤✓ Presente
+              </button>
+              <button type="button" class="btn-presence falta ${
+                st.presente === false ? "is-active" : ""
+              }" data-action="falta">
+                👤✕ Falta
+              </button>
+            </div>
+            ${
+              showPcs
+                ? `<div class="pc-block">
+                    <div class="pc-label">💻 Computador — selecione</div>
+                    <div class="pc-grid">${pcs}</div>
+                  </div>`
+                : st.presente === null
+                  ? `<p class="pc-hint">Toque em <strong>Presente</strong> para liberar a escolha do computador.</p>`
+                  : `<p class="pc-hint is-falta">Falta registrada — sem alocação de máquina.</p>`
+            }
+          </article>`;
+      })
+      .join("");
+    atualizarContador();
+  }
+
   async function bootstrapAppData() {
     if (!els.inputData.value) {
       els.inputData.value = new Date().toISOString().slice(0, 10);
     }
     const turmas = await api("/api/turmas");
     els.selectTurma.innerHTML = turmas
-      .map((t) => `<option value="${t.id}">${t.nome} · ${t.turno}</option>`)
+      .map((t) => `<option value="${t.id}">${t.nome}</option>`)
       .join("");
-    if (turmas.length) {
-      await loadTurmaDetalhe();
-    } else {
+    if (!turmas.length) {
       els.listaAlunos.innerHTML =
-        '<p class="meta">Nenhuma turma cadastrada. Execute o seed do backend.</p>';
+        '<p class="empty-state">Nenhuma turma cadastrada.</p>';
+      return;
     }
+    turmaNome = turmas[0].nome;
+    await loadTurmaDetalhe();
   }
 
   async function loadTurmaDetalhe() {
     const turmaId = els.selectTurma.value;
     if (!turmaId) return;
+    turmaNome = els.selectTurma.selectedOptions[0]?.textContent || turmaNome;
     const [alunos, comps] = await Promise.all([
       api(`/api/turmas/${turmaId}/alunos`),
       api(`/api/turmas/${turmaId}/computadores`),
     ]);
     alunosCache = alunos;
     computadoresCache = comps;
+    estadoAlunos = {};
+    alunos.forEach((a) => {
+      estadoAlunos[a.id] = { presente: null, computadorId: null };
+    });
     renderAlunos();
-  }
-
-  function renderAlunos() {
-    const disponiveis = computadoresCache.filter((c) => c.disponivel);
-    els.listaAlunos.innerHTML = alunosCache
-      .map((a) => {
-        const options = [
-          '<option value="">Sem computador</option>',
-          ...disponiveis.map(
-            (c) => `<option value="${c.id}">${c.codigo} · ${c.lab}</option>`
-          ),
-        ].join("");
-        return `
-          <article class="list-item" data-aluno-id="${a.id}">
-            <header>
-              <strong>${a.nome}</strong>
-              <span class="meta">${a.matricula}</span>
-            </header>
-            <div class="row-actions">
-              <label class="toggle">
-                <input type="checkbox" class="chk-presente" checked />
-                Presente
-              </label>
-              <label>
-                Computador
-                <select class="sel-pc">${options}</select>
-              </label>
-            </div>
-          </article>`;
-      })
-      .join("");
   }
 
   async function salvarChamada() {
     const turmaId = Number(els.selectTurma.value);
     const data = els.inputData.value;
-    const registros = [...els.listaAlunos.querySelectorAll(".list-item")].map((item) => {
-      const presente = item.querySelector(".chk-presente").checked;
-      const pc = item.querySelector(".sel-pc").value;
-      return {
-        aluno_id: Number(item.dataset.alunoId),
-        presente,
-        computador_id: presente && pc ? Number(pc) : null,
-      };
-    });
+    const registros = alunosCache
+      .filter((a) => estadoAlunos[a.id]?.presente !== null)
+      .map((a) => {
+        const st = estadoAlunos[a.id];
+        return {
+          aluno_id: a.id,
+          presente: st.presente === true,
+          computador_id: st.presente === true ? st.computadorId : null,
+        };
+      });
+
+    if (!registros.length) {
+      showMsg(els.chamadaMsg, "Marque presença ou falta de pelo menos um aluno.", "warn");
+      return;
+    }
 
     try {
       const out = await api("/api/chamadas", {
@@ -179,19 +236,13 @@
         body: JSON.stringify({ turma_id: turmaId, data, registros }),
       });
       const conflitos = out.resultados.filter((r) => r.status === "overbooking");
-      if (conflitos.length) {
-        showMsg(
-          els.chamadaMsg,
-          `Chamada salva com travas: ${conflitos.length} overbooking(s) bloqueado(s). Alertas: ${out.alertas_gerados}.`,
-          "warn"
-        );
-      } else {
-        showMsg(
-          els.chamadaMsg,
-          `Chamada salva. Alertas gerados: ${out.alertas_gerados}.`,
-          "ok"
-        );
-      }
+      showMsg(
+        els.chamadaMsg,
+        conflitos.length
+          ? `Salvo com ${conflitos.length} overbooking(s) bloqueado(s).`
+          : `Chamada salva com sucesso.`,
+        conflitos.length ? "warn" : "ok"
+      );
       await loadTurmaDetalhe();
     } catch (e) {
       showMsg(els.chamadaMsg, e.message, "error");
@@ -200,24 +251,65 @@
 
   async function loadAlertas() {
     const alertas = await api("/api/alertas");
+    const totalPc = Math.max(computadoresCache.length, 1);
+    const ocupados = pcsOcupadosNoEstado().size;
+    const ocupacao = Math.round((ocupados / totalPc) * 100);
+    const presentesHoje = Object.values(estadoAlunos).filter((s) => s.presente === true).length;
+
+    els.metricOcupacao.textContent = `${ocupacao}%`;
+    els.metricPresencas.textContent = String(presentesHoje);
+    els.metricPresencasSub.textContent = `registradas · ${presentesHoje} hoje`;
+    els.riscoTitulo.textContent = `Risco de evasão (${alertas.length})`;
+
     if (!alertas.length) {
-      els.listaAlertas.innerHTML = '<p class="meta">Nenhum alerta aberto no momento.</p>';
+      els.listaAlertas.innerHTML =
+        '<p class="empty-state">Nenhum alerta aberto no momento.</p>';
       return;
     }
+
     els.listaAlertas.innerHTML = alertas
       .map(
         (a) => `
-        <article class="list-item">
-          <header>
-            <strong>${a.aluno?.nome || `Aluno #${a.aluno_id}`}</strong>
-            <span class="badge risco">${a.faltas_consecutivas} faltas</span>
-          </header>
-          <p class="meta">${a.mensagem}</p>
-          <button class="btn btn-danger" type="button" data-resolver="${a.id}">Marcar resolvido</button>
+        <article class="alerta-card">
+          <div class="warn-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/>
+            </svg>
+          </div>
+          <div>
+            <strong>${a.aluno?.nome || `Aluno #${a.aluno_id}`} — ${a.faltas_consecutivas} Faltas Consecutivas Detectadas</strong>
+            <p>${turmaNome || "Turma"} · Recomenda-se contato com a família.</p>
+            <button type="button" class="resolve" data-resolver="${a.id}">Marcar resolvido</button>
+          </div>
         </article>`
       )
       .join("");
   }
+
+  els.listaAlunos.addEventListener("click", (ev) => {
+    const card = ev.target.closest(".aluno-card");
+    if (!card) return;
+    const alunoId = Number(card.dataset.alunoId);
+    const st = estadoAlunos[alunoId];
+    if (!st) return;
+
+    const actionBtn = ev.target.closest("[data-action]");
+    if (actionBtn) {
+      const action = actionBtn.dataset.action;
+      st.presente = action === "presente" ? true : false;
+      if (st.presente !== true) st.computadorId = null;
+      renderAlunos();
+      return;
+    }
+
+    const pcBtn = ev.target.closest("[data-pc]");
+    if (pcBtn && !pcBtn.disabled) {
+      const pcId = Number(pcBtn.dataset.pc);
+      st.computadorId = st.computadorId === pcId ? null : pcId;
+      st.presente = true;
+      renderAlunos();
+    }
+  });
 
   els.formLogin.addEventListener("submit", async (ev) => {
     ev.preventDefault();
@@ -229,11 +321,15 @@
         body: JSON.stringify({ email, senha }),
       });
       setSession(data);
-      showMsg(els.loginMsg, "Login realizado com sucesso.", "ok");
       renderAuth();
     } catch (e) {
       showMsg(els.loginMsg, e.message, "error");
     }
+  });
+
+  els.btnToggleSenha?.addEventListener("click", () => {
+    const input = document.getElementById("login-senha");
+    input.type = input.type === "password" ? "text" : "password";
   });
 
   els.btnLogout.addEventListener("click", () => {
@@ -258,16 +354,14 @@
       await api(`/api/alertas/${btn.dataset.resolver}/resolver`, { method: "PATCH" });
       await loadAlertas();
     } catch (e) {
-      els.listaAlertas.insertAdjacentHTML(
-        "afterbegin",
-        `<div class="msg error">${e.message}</div>`
-      );
+      els.listaAlertas.insertAdjacentHTML("afterbegin", `<div class="msg error">${e.message}</div>`);
     }
   });
 
   function updateOnline() {
     const on = navigator.onLine;
-    els.onlineStatus.textContent = on ? "Online" : "Offline";
+    els.onlineStatus.classList.toggle("is-offline", !on);
+    els.onlineStatus.lastChild.textContent = on ? " Online" : " Offline";
   }
   window.addEventListener("online", updateOnline);
   window.addEventListener("offline", updateOnline);
@@ -279,7 +373,7 @@
     els.btnInstalar.classList.remove("hidden");
   });
 
-  els.btnInstalar.addEventListener("click", async () => {
+  els.btnInstalar?.addEventListener("click", async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     await deferredPrompt.userChoice;
