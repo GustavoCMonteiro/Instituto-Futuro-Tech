@@ -130,12 +130,24 @@ Cobertura incluída:
 
 ## Variáveis de ambiente (opcional)
 
+Use o arquivo `.env.example` como modelo:
+
+```bash
+cp .env.example .env
+```
+
 | Variável | Padrão | Uso |
 |----------|--------|-----|
 | `GESTAO_AGIL_SECRET` | chave de desenvolvimento | Segredo JWT |
 | `GESTAO_AGIL_TOKEN_MINUTES` | `480` | Expiração do token |
 
 **Em produção**, altere `GESTAO_AGIL_SECRET` e restrinja CORS/`/api/auth/register`.
+
+O arquivo `pytest.ini` já configura `pythonpath = .`, então os testes rodam com:
+
+```bash
+pytest
+```
 
 ## Histórico de commits semânticos
 
