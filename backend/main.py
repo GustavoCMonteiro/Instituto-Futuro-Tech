@@ -86,27 +86,29 @@ def _seed_demo() -> None:
 
         if not db.query(Turma).first():
             turma = Turma(
-                nome="Turma Dev Web A",
-                curso="Desenvolvimento Web",
+                nome="1º Ano A",
+                curso="Informática",
                 turno="Manhã",
             )
             db.add(turma)
             db.flush()
 
             alunos = [
-                Aluno(matricula="IFT2026001", nome="Ana Souza", turma_id=turma.id),
-                Aluno(matricula="IFT2026002", nome="Bruno Lima", turma_id=turma.id),
-                Aluno(matricula="IFT2026003", nome="Carla Mendes", turma_id=turma.id),
-                Aluno(matricula="IFT2026004", nome="Diego Rocha", turma_id=turma.id),
-                Aluno(matricula="IFT2026005", nome="Elena Castro", turma_id=turma.id),
+                Aluno(matricula="IFT2026001", nome="Beatriz Lima", turma_id=turma.id),
+                Aluno(matricula="IFT2026002", nome="Gabriel Souza", turma_id=turma.id),
+                Aluno(matricula="IFT2026003", nome="Mariana Alves", turma_id=turma.id),
+                Aluno(matricula="IFT2026004", nome="Lucas Pereira", turma_id=turma.id),
+                Aluno(matricula="IFT2026005", nome="Ana Costa", turma_id=turma.id),
             ]
             db.add_all(alunos)
 
             pcs = [
-                Computador(codigo="PC-01", lab="Lab 1", turma_id=turma.id),
-                Computador(codigo="PC-02", lab="Lab 1", turma_id=turma.id),
-                Computador(codigo="PC-03", lab="Lab 1", turma_id=turma.id),
-                Computador(codigo="PC-04", lab="Lab 1", turma_id=turma.id),
+                Computador(codigo="PC 01", lab="Lab 1", turma_id=turma.id),
+                Computador(codigo="PC 02", lab="Lab 1", turma_id=turma.id),
+                Computador(codigo="PC 03", lab="Lab 1", turma_id=turma.id),
+                Computador(codigo="PC 04", lab="Lab 1", turma_id=turma.id),
+                Computador(codigo="PC 05", lab="Lab 1", turma_id=turma.id),
+                Computador(codigo="PC 06", lab="Lab 1", turma_id=turma.id, disponivel=False),
             ]
             db.add_all(pcs)
 

@@ -3,42 +3,46 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b1f33" />
+    <meta name="theme-color" content="#006B5F" />
     <meta name="description" content="Gestão Ágil — chamada, laboratório e prevenção de evasão no Instituto Futuro Tech." />
     <title>Gestão Ágil · Instituto Futuro Tech</title>
     <link rel="manifest" href="/manifest.json" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/static/style.css" />
   </head>
   <body>
-    <div class="app-shell">
-      <header class="brand-bar">
-        <div class="brand">
-          <strong>Instituto Futuro Tech</strong>
-          <span>Gestão Ágil · Educação de Qualidade (ODS 4)</span>
+    <!-- LOGIN -->
+    <div id="view-login" class="login-page">
+      <div class="login-hero">
+        <div class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" width="34" height="34" fill="none">
+            <path d="M8 20 L24 12 L40 20 L24 28 Z" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/>
+            <path d="M14 23 V31 C14 31 18 35 24 35 C30 35 34 31 34 31 V23" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/>
+            <path d="M40 20 V30" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+          </svg>
         </div>
-        <div id="online-status" class="status-pill" aria-live="polite">Online</div>
-      </header>
+        <h1>Instituto Futuro Tech</h1>
+        <p>Gestão Ágil · Laboratório</p>
+      </div>
 
-      <main id="view-login" class="panel" aria-labelledby="login-title">
-        <h1 id="login-title">Entrar</h1>
-        <p class="lead">Acesso seguro para educadores. Sessão protegida com JWT.</p>
-        <form id="form-login" class="form-grid" novalidate>
-          <label>
-            E-mail
-            <input
-              id="login-email"
-              name="email"
-              type="email"
-              autocomplete="username"
-              required
-              placeholder="educador@futurotech.edu.br"
-            />
-          </label>
-          <label>
-            Senha
+      <form id="form-login" class="login-card" novalidate>
+        <label>
+          E-mail do Professor
+          <input
+            id="login-email"
+            name="email"
+            type="email"
+            autocomplete="username"
+            required
+            placeholder="professor@futurotech.edu.br"
+            value="educador@futurotech.edu.br"
+          />
+        </label>
+        <label>
+          Senha
+          <div class="password-wrap">
             <input
               id="login-senha"
               name="senha"
@@ -47,56 +51,103 @@
               required
               minlength="6"
               placeholder="••••••••"
+              value="ift2026"
             />
-          </label>
-          <button class="btn btn-primary" type="submit">Acessar painel</button>
-        </form>
-        <div id="login-msg" class="msg hidden" role="alert"></div>
-        <p class="meta" style="margin-top: 1rem">
-          Demo: <code>educador@futurotech.edu.br</code> / <code>ift2026</code>
-        </p>
-      </main>
-
-      <section id="view-app" class="hidden" aria-live="polite">
-        <div class="toolbar">
-          <button id="btn-logout" class="btn btn-ghost" type="button">Sair</button>
-          <span id="user-chip" class="status-pill"></span>
-        </div>
-
-        <div id="screen-chamada" class="panel hidden">
-          <h2>Chamada e alocação</h2>
-          <p class="lead">Registre presença e aloque computadores sem overbooking.</p>
-          <div class="form-grid">
-            <label>
-              Turma
-              <select id="select-turma" aria-label="Selecionar turma"></select>
-            </label>
-            <label>
-              Data
-              <input id="input-data" type="date" />
-            </label>
+            <button type="button" id="btn-toggle-senha" class="icon-btn" aria-label="Mostrar senha">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
           </div>
-          <div id="lista-alunos" class="list" aria-live="polite"></div>
-          <button id="btn-salvar-chamada" class="btn btn-primary" type="button" style="margin-top: 1rem; width: 100%">
-            Salvar chamada
-          </button>
-          <div id="chamada-msg" class="msg hidden" role="status"></div>
-        </div>
-
-        <div id="screen-alertas" class="panel hidden">
-          <h2>Painel de alertas</h2>
-          <p class="lead">Risco de evasão por faltas consecutivas.</p>
-          <div id="lista-alertas" class="list" aria-live="polite"></div>
-        </div>
-
-        <nav class="nav-bottom" aria-label="Navegação principal">
-          <button type="button" data-screen="chamada" aria-current="page">Chamada</button>
-          <button type="button" data-screen="alertas">Alertas</button>
-          <button type="button" id="btn-instalar" class="hidden">Instalar app</button>
-        </nav>
-      </section>
+        </label>
+        <button class="btn-entrar" type="submit">Entrar</button>
+        <div id="login-msg" class="msg hidden" role="alert"></div>
+      </form>
+      <p class="demo-hint">Demo: educador@futurotech.edu.br · ift2026</p>
     </div>
 
+    <!-- APP -->
+    <div id="view-app" class="app-page hidden">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Instituto Futuro Tech</p>
+          <h1 id="header-title">Chamada e Máquinas</h1>
+        </div>
+        <div class="header-actions">
+          <span id="online-status" class="online-pill" aria-live="polite">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+              <path d="M5 12.5a8 8 0 0 1 14 0"/><path d="M8.5 15a4.5 4.5 0 0 1 7 0"/><circle cx="12" cy="18" r="1.2" fill="currentColor"/>
+            </svg>
+            Online
+          </span>
+          <button id="btn-logout" class="icon-btn light" type="button" aria-label="Sair">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4"/>
+              <path d="M14 16l4-4-4-4"/><path d="M18 12H9"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="app-main">
+        <section id="screen-chamada">
+          <div class="toolbar-chamada">
+            <p id="contador-alunos" class="counter">0 de 0 alunos registrados</p>
+            <div class="filters">
+              <select id="select-turma" aria-label="Selecionar turma"></select>
+              <input id="input-data" type="date" aria-label="Data da chamada" />
+            </div>
+          </div>
+          <div id="lista-alunos" class="aluno-list" aria-live="polite"></div>
+          <button id="btn-salvar-chamada" class="btn-salvar" type="button">Salvar chamada</button>
+          <div id="chamada-msg" class="msg hidden" role="status"></div>
+        </section>
+
+        <section id="screen-alertas" class="hidden">
+          <div class="metrics">
+            <article class="metric metric-dark">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="13" rx="2"/><path d="M8 21h8M12 18v3"/>
+              </svg>
+              <strong id="metric-ocupacao">0%</strong>
+              <span>de Ocupação</span>
+              <small>média das máquinas hoje</small>
+            </article>
+            <article class="metric metric-light">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="3.5"/>
+                <path d="M20 8v6M17 11h6"/>
+              </svg>
+              <strong id="metric-presencas">0</strong>
+              <span>Presenças</span>
+              <small id="metric-presencas-sub">registradas · 0 hoje</small>
+            </article>
+          </div>
+          <h2 id="risco-titulo" class="section-title">Risco de evasão (0)</h2>
+          <div id="lista-alertas" class="alerta-list" aria-live="polite"></div>
+        </section>
+      </main>
+
+      <nav class="nav-bottom" aria-label="Navegação principal">
+        <button type="button" data-screen="chamada" aria-current="page">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+            <rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/>
+          </svg>
+          Chamada
+        </button>
+        <button type="button" data-screen="alertas">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/>
+          </svg>
+          Alertas
+        </button>
+        <button type="button" id="btn-instalar" class="hidden">Instalar</button>
+      </nav>
+    </div>
+
+    <span id="user-chip" class="hidden"></span>
     <script src="/static/app.js" defer></script>
   </body>
 </html>
