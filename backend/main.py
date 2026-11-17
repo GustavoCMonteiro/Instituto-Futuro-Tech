@@ -1,8 +1,9 @@
-"""API FastAPI — autenticação JWT e bootstrap do Gestão Ágil."""
+"""API FastAPI — Login, Chamada, Alocação e Painel de Alertas."""
 
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import date
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -18,8 +19,26 @@ from backend.auth import (
     hash_senha,
 )
 from backend.database import SessionLocal, get_db, init_db
-from backend.models import Usuario
-from backend.schemas import LoginIn, TokenOut, UsuarioCreate, UsuarioOut
+from backend.models import Alerta, Aluno, Computador, Turma, Usuario
+from backend.schemas import (
+    AlertaOut,
+    AlocacaoResultado,
+    AlunoOut,
+    ChamadaDiariaIn,
+    ChamadaDiariaOut,
+    ComputadorOut,
+    LoginIn,
+    TokenOut,
+    TurmaOut,
+    UsuarioCreate,
+    UsuarioOut,
+)
+from backend.services import (
+    alocar_com_trava_overbooking,
+    atualizar_risco_evasao,
+    computadores_ocupados_na_data,
+    listar_alertas_abertos,
+)
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -27,7 +46,7 @@ FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
-    _seed_admin()
+    _seed_demo()
     yield
 
 
@@ -50,8 +69,8 @@ app.add_middleware(
 )
 
 
-def _seed_admin() -> None:
-    """Cria educador padrão para demonstração acadêmica."""
+def _seed_demo() -> None:
+    """Dados iniciais para demonstração acadêmica."""
     db = SessionLocal()
     try:
         email = "educador@futurotech.edu.br"
@@ -64,7 +83,34 @@ def _seed_admin() -> None:
                     papel="educador",
                 )
             )
-            db.commit()
+
+        if not db.query(Turma).first():
+            turma = Turma(
+                nome="Turma Dev Web A",
+                curso="Desenvolvimento Web",
+                turno="Manhã",
+            )
+            db.add(turma)
+            db.flush()
+
+            alunos = [
+                Aluno(matricula="IFT2026001", nome="Ana Souza", turma_id=turma.id),
+                Aluno(matricula="IFT2026002", nome="Bruno Lima", turma_id=turma.id),
+                Aluno(matricula="IFT2026003", nome="Carla Mendes", turma_id=turma.id),
+                Aluno(matricula="IFT2026004", nome="Diego Rocha", turma_id=turma.id),
+                Aluno(matricula="IFT2026005", nome="Elena Castro", turma_id=turma.id),
+            ]
+            db.add_all(alunos)
+
+            pcs = [
+                Computador(codigo="PC-01", lab="Lab 1", turma_id=turma.id),
+                Computador(codigo="PC-02", lab="Lab 1", turma_id=turma.id),
+                Computador(codigo="PC-03", lab="Lab 1", turma_id=turma.id),
+                Computador(codigo="PC-04", lab="Lab 1", turma_id=turma.id),
+            ]
+            db.add_all(pcs)
+
+        db.commit()
     finally:
         db.close()
 
@@ -100,7 +146,6 @@ def login(payload: LoginIn, db: Session = Depends(get_db)):
     """Login com e-mail/senha; retorna JWT Bearer."""
     usuario = autenticar_usuario(db, str(payload.email), payload.senha)
     if not usuario:
-        # Mensagem genérica evita enumeração de usuários (OWASP)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciais inválidas.",
@@ -116,6 +161,163 @@ def login(payload: LoginIn, db: Session = Depends(get_db)):
 @app.get("/api/auth/me", response_model=UsuarioOut)
 def me(usuario: Usuario = Depends(get_current_user)):
     return usuario
+
+
+@app.get("/api/turmas", response_model=list[TurmaOut])
+def listar_turmas(
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+):
+    return db.query(Turma).filter(Turma.ativa.is_(True)).order_by(Turma.nome).all()
+
+
+@app.get("/api/turmas/{turma_id}/alunos", response_model=list[AlunoOut])
+def listar_alunos(
+    turma_id: int,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+):
+    turma = db.get(Turma, turma_id)
+    if not turma:
+        raise HTTPException(status_code=404, detail="Turma não encontrada.")
+    return (
+        db.query(Aluno)
+        .filter(Aluno.turma_id == turma_id, Aluno.ativo.is_(True))
+        .order_by(Aluno.nome)
+        .all()
+    )
+
+
+@app.get("/api/turmas/{turma_id}/computadores", response_model=list[ComputadorOut])
+def listar_computadores(
+    turma_id: int,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+):
+    turma = db.get(Turma, turma_id)
+    if not turma:
+        raise HTTPException(status_code=404, detail="Turma não encontrada.")
+    return (
+        db.query(Computador)
+        .filter(Computador.turma_id == turma_id)
+        .order_by(Computador.codigo)
+        .all()
+    )
+
+
+@app.post("/api/chamadas", response_model=ChamadaDiariaOut)
+def registrar_chamada(
+    payload: ChamadaDiariaIn,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+):
+    """Chamada diária com alocação e trava de overbooking de computadores."""
+    turma = db.get(Turma, payload.turma_id)
+    if not turma:
+        raise HTTPException(status_code=404, detail="Turma não encontrada.")
+
+    dia = payload.data or date.today()
+    ocupados = computadores_ocupados_na_data(db, payload.turma_id, dia)
+    resultados: list[AlocacaoResultado] = []
+    alertas_gerados = 0
+
+    # Detecta tentativa explícita de overbooking no mesmo payload
+    vistos_no_payload: set[int] = set()
+
+    for item in payload.registros:
+        aluno = (
+            db.query(Aluno)
+            .filter(Aluno.id == item.aluno_id, Aluno.turma_id == payload.turma_id)
+            .first()
+        )
+        if not aluno:
+            resultados.append(
+                AlocacaoResultado(
+                    aluno_id=item.aluno_id,
+                    presente=item.presente,
+                    status="aluno_invalido",
+                    detalhe="Aluno não pertence à turma.",
+                )
+            )
+            continue
+
+        computador_id = item.computador_id
+        if (
+            item.presente
+            and computador_id is not None
+            and computador_id in vistos_no_payload
+        ):
+            # Trava imediata no batch: dois alunos no mesmo PC
+            freq, status_aloc, detalhe = alocar_com_trava_overbooking(
+                db,
+                aluno=aluno,
+                dia=dia,
+                presente=True,
+                computador_id=None,
+                observacao=(item.observacao or "") + " [overbooking no lote]",
+                ocupados_batch=ocupados,
+            )
+            status_aloc = "overbooking"
+            detalhe = f"Computador {computador_id} duplicado no mesmo envio."
+        else:
+            if item.presente and computador_id is not None:
+                vistos_no_payload.add(computador_id)
+            freq, status_aloc, detalhe = alocar_com_trava_overbooking(
+                db,
+                aluno=aluno,
+                dia=dia,
+                presente=item.presente,
+                computador_id=computador_id,
+                observacao=item.observacao,
+                ocupados_batch=ocupados,
+            )
+
+        alerta = atualizar_risco_evasao(db, aluno, dia)
+        if alerta and not alerta.resolvido and alerta.faltas_consecutivas >= 3:
+            # Conta apenas quando o alerta reflete o estado atual pós-chamada
+            if not item.presente:
+                alertas_gerados += 1
+
+        resultados.append(
+            AlocacaoResultado(
+                aluno_id=aluno.id,
+                presente=item.presente if freq else item.presente,
+                computador_id=freq.computador_id if freq else None,
+                status=status_aloc,
+                detalhe=detalhe,
+            )
+        )
+
+    db.commit()
+    return ChamadaDiariaOut(
+        data=dia,
+        turma_id=payload.turma_id,
+        resultados=resultados,
+        alertas_gerados=alertas_gerados,
+    )
+
+
+@app.get("/api/alertas", response_model=list[AlertaOut])
+def painel_alertas(
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+):
+    return listar_alertas_abertos(db)
+
+
+@app.patch("/api/alertas/{alerta_id}/resolver", response_model=AlertaOut)
+def resolver_alerta(
+    alerta_id: int,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+):
+    alerta = db.get(Alerta, alerta_id)
+    if not alerta:
+        raise HTTPException(status_code=404, detail="Alerta não encontrado.")
+    alerta.resolvido = True
+    db.commit()
+    db.refresh(alerta)
+    return alerta
 
 
 if FRONTEND_DIR.exists():
