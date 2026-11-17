@@ -1,0 +1,25 @@
+{
+  "name": "Gestão Ágil - Instituto Futuro Tech",
+  "short_name": "Gestão Ágil",
+  "description": "Chamada, alocação de laboratório e alertas de evasão (ODS 4).",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b1f33",
+  "theme_color": "#0b1f33",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1f33" />
+    <meta name="description" content="Gestão Ágil — chamada, laboratório e prevenção de evasão no Instituto Futuro Tech." />
+    <title>Gestão Ágil · Instituto Futuro Tech</title>
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="brand-bar">
+        <div class="brand">
+          <strong>Instituto Futuro Tech</strong>
+          <span>Gestão Ágil · Educação de Qualidade (ODS 4)</span>
+        </div>
+        <div id="online-status" class="status-pill" aria-live="polite">Online</div>
+      </header>
+
+      <main id="view-login" class="panel" aria-labelledby="login-title">
+        <h1 id="login-title">Entrar</h1>
+        <p class="lead">Acesso seguro para educadores. Sessão protegida com JWT.</p>
+        <form id="form-login" class="form-grid" novalidate>
+          <label>
+            E-mail
+            <input
+              id="login-email"
+              name="email"
+              type="email"
+              autocomplete="username"
+              required
+              placeholder="educador@futurotech.edu.br"
+            />
+          </label>
+          <label>
+            Senha
+            <input
+              id="login-senha"
+              name="senha"
+              type="password"
+              autocomplete="current-password"
+              required
+              minlength="6"
+              placeholder="••••••••"
+            />
+          </label>
+          <button class="btn btn-primary" type="submit">Acessar painel</button>
+        </form>
+        <div id="login-msg" class="msg hidden" role="alert"></div>
+        <p class="meta" style="margin-top: 1rem">
+          Demo: <code>educador@futurotech.edu.br</code> / <code>ift2026</code>
+        </p>
+      </main>
+
+      <section id="view-app" class="hidden" aria-live="polite">
+        <div class="toolbar">
+          <button id="btn-logout" class="btn btn-ghost" type="button">Sair</button>
+          <span id="user-chip" class="status-pill"></span>
+        </div>
+
+        <div id="screen-chamada" class="panel hidden">
+          <h2>Chamada e alocação</h2>
+          <p class="lead">Registre presença e aloque computadores sem overbooking.</p>
+          <div class="form-grid">
+            <label>
+              Turma
+              <select id="select-turma" aria-label="Selecionar turma"></select>
+            </label>
+            <label>
+              Data
+              <input id="input-data" type="date" />
+            </label>
+          </div>
+          <div id="lista-alunos" class="list" aria-live="polite"></div>
+          <button id="btn-salvar-chamada" class="btn btn-primary" type="button" style="margin-top: 1rem; width: 100%">
+            Salvar chamada
+          </button>
+          <div id="chamada-msg" class="msg hidden" role="status"></div>
+        </div>
+
+        <div id="screen-alertas" class="panel hidden">
+          <h2>Painel de alertas</h2>
+          <p class="lead">Risco de evasão por faltas consecutivas.</p>
+          <div id="lista-alertas" class="list" aria-live="polite"></div>
+        </div>
+
+        <nav class="nav-bottom" aria-label="Navegação principal">
+          <button type="button" data-screen="chamada" aria-current="page">Chamada</button>
+          <button type="button" data-screen="alertas">Alertas</button>
+          <button type="button" id="btn-instalar" class="hidden">Instalar app</button>
+        </nav>
+      </section>
+    </div>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
