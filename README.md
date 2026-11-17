@@ -114,11 +114,20 @@ Um computador **não pode** ser alocado a dois alunos na mesma data. Conflitos n
 
 Após **3 faltas consecutivas** (`LIMITE_FALTAS_CONSECUTIVAS`), o sistema gera/atualiza um alerta do tipo `risco_evasao` no painel pedagógico.
 
+## Integração Contínua (GitHub Actions)
+
+A cada push e pull request para `main`, o workflow `.github/workflows/ci.yml` roda automaticamente:
+
+1. Instala dependências (Python 3.12)
+2. Executa a suíte `pytest` com cobertura
+3. Faz smoke test do endpoint `/api/health`
+
+Acompanhe em: **Actions** → workflow **CI** (status verde = build e testes aprovados).
+
 ## Testes
 
 ```bash
 source .venv/bin/activate
-export PYTHONPATH=.
 pytest tests/ -v
 ```
 
